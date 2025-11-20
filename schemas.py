@@ -11,8 +11,8 @@ Model name is converted to lowercase for the collection name:
 - BlogPost -> "blogs" collection
 """
 
-from pydantic import BaseModel, Field
-from typing import Optional
+from pydantic import BaseModel, Field, EmailStr
+from typing import Optional, List
 
 # Example schemas (replace with your own):
 
@@ -37,6 +37,38 @@ class Product(BaseModel):
     price: float = Field(..., ge=0, description="Price in dollars")
     category: str = Field(..., description="Product category")
     in_stock: bool = Field(True, description="Whether product is in stock")
+
+# Holiday Homes specific schemas
+
+class Property(BaseModel):
+    """
+    Collection name: "property"
+    Represents a holiday home listing.
+    """
+    title: str = Field(..., description="Property title")
+    location: str = Field(..., description="City or area")
+    description: Optional[str] = Field(None, description="Short description")
+    bedrooms: Optional[int] = Field(None, ge=0)
+    bathrooms: Optional[float] = Field(None, ge=0)
+    guests: Optional[int] = Field(None, ge=1)
+    price_per_night: Optional[float] = Field(None, ge=0)
+    amenities: List[str] = Field(default_factory=list)
+    images: List[str] = Field(default_factory=list)
+    rating: Optional[float] = Field(None, ge=0, le=5)
+
+class Inquiry(BaseModel):
+    """
+    Collection name: "inquiry"
+    Contact/inquiry submissions from the website.
+    """
+    name: str = Field(..., description="Sender full name")
+    email: EmailStr = Field(..., description="Sender email")
+    phone: Optional[str] = Field(None, description="Phone number")
+    message: str = Field(..., description="Message content")
+    property_id: Optional[str] = Field(None, description="Referenced property id if any")
+    check_in: Optional[str] = Field(None, description="Desired check-in date (ISO)")
+    check_out: Optional[str] = Field(None, description="Desired check-out date (ISO)")
+    guests: Optional[int] = Field(None, ge=1, description="Number of guests")
 
 # Add your own schemas here:
 # --------------------------------------------------

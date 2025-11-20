@@ -1,8 +1,12 @@
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import Any, Dict
 
-app = FastAPI()
+from database import create_document
+
+app = FastAPI(title="Kwick Stays Holiday Homes LLC API")
 
 app.add_middleware(
     CORSMiddleware,
@@ -14,11 +18,43 @@ app.add_middleware(
 
 @app.get("/")
 def read_root():
-    return {"message": "Hello from FastAPI Backend!"}
+    return {"name": "Kwick Stays Holiday Homes LLC", "status": "ok"}
 
 @app.get("/api/hello")
 def hello():
-    return {"message": "Hello from the backend API!"}
+    return {"message": "Welcome to Kwick Stays Holiday Homes LLC API"}
+
+# Public schema endpoint for tooling/validation
+@app.get("/schema")
+def get_schema():
+    import inspect, schemas
+    models = {}
+    for name, obj in inspect.getmembers(schemas):
+        try:
+            if hasattr(obj, "model_json_schema"):
+                models[name] = obj.model_json_schema()
+        except Exception:
+            continue
+    return {"models": models}
+
+# Inquiry endpoint
+class InquiryPayload(BaseModel):
+    name: str
+    email: str
+    phone: str | None = None
+    message: str
+    property_id: str | None = None
+    check_in: str | None = None
+    check_out: str | None = None
+    guests: int | None = None
+
+@app.post("/api/inquiries")
+def create_inquiry(payload: InquiryPayload):
+    try:
+        inquiry_id = create_document("inquiry", payload.model_dump())
+        return {"id": inquiry_id, "status": "received"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/test")
 def test_database():
@@ -33,7 +69,6 @@ def test_database():
     }
     
     try:
-        # Try to import database module
         from database import db
         
         if db is not None:
@@ -42,10 +77,9 @@ def test_database():
             response["database_name"] = db.name if hasattr(db, 'name') else "✅ Connected"
             response["connection_status"] = "Connected"
             
-            # Try to list collections to verify connectivity
             try:
                 collections = db.list_collection_names()
-                response["collections"] = collections[:10]  # Show first 10 collections
+                response["collections"] = collections[:10]
                 response["database"] = "✅ Connected & Working"
             except Exception as e:
                 response["database"] = f"⚠️  Connected but Error: {str(e)[:50]}"
@@ -57,7 +91,6 @@ def test_database():
     except Exception as e:
         response["database"] = f"❌ Error: {str(e)[:50]}"
     
-    # Check environment variables
     import os
     response["database_url"] = "✅ Set" if os.getenv("DATABASE_URL") else "❌ Not Set"
     response["database_name"] = "✅ Set" if os.getenv("DATABASE_NAME") else "❌ Not Set"
